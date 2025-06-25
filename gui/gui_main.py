@@ -3,6 +3,8 @@ from tkinter import filedialog, messagebox, ttk
 import time
 import logging
 
+from utils import programs
+
 from utils.logger import get_logger
 from utils.permissions import copy_with_permissions
 
@@ -41,6 +43,14 @@ def launch_gui() -> None:
     text_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(text_handler)
 
+    def generate_report_gui() -> None:
+        out_dir = filedialog.askdirectory(title="Select Output Directory", parent=root)
+        if not out_dir:
+            return
+        path = programs.generate_report(out_dir)
+        messagebox.showinfo("Report", f"Report generated at {path}", parent=root)
+
+        
     def choose_and_transfer() -> None:
         src = filedialog.askopenfilename(title="Select Source File", parent=root)
         if not src:
@@ -51,7 +61,7 @@ def launch_gui() -> None:
 
         start = time.time()
 
-        def update(copied: int, total: int) -> None:
+    def update(copied: int, total: int) -> None:
             percent = copied / total * 100 if total else 100
             progress['value'] = percent
             logger.debug("Copied %s/%s bytes", copied, total)
@@ -64,7 +74,7 @@ def launch_gui() -> None:
             messagebox.showerror("Transfer", "Operation failed or canceled. See log for details.", parent=root)
 
     tk.Button(frame, text="Transfer File", width=20, command=choose_and_transfer).pack(pady=5)
-
+    tk.Button(frame, text="Generate Program Report", width=20, command=generate_report_gui).pack(pady=5)
     tk.Label(frame, text="(Functionality coming soon)").pack(pady=10)
 
     root.mainloop()

@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import time
+from utils import programs
 
 from utils.logger import get_logger
 from utils.permissions import copy_with_permissions
@@ -65,12 +66,25 @@ def run_cli(args=None) -> None:
         '--transfer', nargs=2, metavar=('SRC', 'DST'),
         help='Transfer file from SRC to DST'
     )
+    
+    parser.add_argument(
+        '--installed-report', nargs='?', metavar='DIR', const='',
+        help='Generate installed programs report in DIR (prompt if omitted)'
+    )
+    
     parsed_args = parser.parse_args(args)
 
     logger.info("Running CLI with args: %s", parsed_args)
     print("=== WinMigrate CLI ===")
 
-    if parsed_args.transfer:
+    if parsed_args.installed_report is not None:
+        output_dir = parsed_args.installed_report
+        if not output_dir:
+            output_dir = input('Enter output directory for report: ').strip()
+        if output_dir:
+            path = programs.generate_report(output_dir)
+            print(f'Report generated at {path}')
+    elif parsed_args.transfer:
         src, dst = parsed_args.transfer
         start = time.time()
         progress = lambda c, t: _print_progress(c, t, start)
