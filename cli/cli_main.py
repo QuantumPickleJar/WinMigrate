@@ -6,8 +6,8 @@ import time
 from utils import programs
 
 from utils.logger import get_logger
+from utils.transfer import copy_file_resumable
 from utils.permissions import copy_with_permissions
-
 
 def _dir_size(path: str) -> int:
     """Return directory size in bytes."""
@@ -43,8 +43,7 @@ def select_directory() -> str | None:
         else:
             print("Canceled.")
             return None
-
-logger = get_logger(__name__)
+    logger = get_logger(__name__)
 
 
 def _print_progress(copied: int, total: int, start: float) -> None:
