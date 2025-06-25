@@ -28,6 +28,10 @@ def launch_gui() -> None:
     progress = ttk.Progressbar(frame, length=300)
     progress.pack(pady=5, fill="x")
 
+    status_var = tk.StringVar(value="")
+    status_label = tk.Label(frame, textvariable=status_var)
+    status_label.pack(pady=2)
+
     log_text = tk.Text(frame, height=10, width=50, state="disabled")
     log_text.pack(pady=5)
 
@@ -65,8 +69,20 @@ def launch_gui() -> None:
             progress['value'] = percent
             logger.debug("Copied %s/%s bytes", copied, total)
 
-        success = copy_with_permissions(src, dst, cli=False, root=root, progress_cb=update)
+        def retry_cb(seconds: int) -> None:
+            status_var.set(f"Retrying in {seconds}s...")
+            root.update_idletasks()
+
+        success = copy_with_permissions(
+            src,
+            dst,
+            cli=False,
+            root=root,
+            progress_cb=update,
+            retry_cb=retry_cb,
+        )
         duration = time.time() - start
+        status_var.set("")
         if success:
             messagebox.showinfo("Transfer", f"Completed in {duration:.1f}s. See log for details.", parent=root)
         else:

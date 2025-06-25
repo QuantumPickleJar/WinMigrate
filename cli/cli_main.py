@@ -59,6 +59,10 @@ def _print_progress(copied: int, total: int, start: float) -> None:
     sys.stdout.write(msg)
     sys.stdout.flush()
 
+def _print_retry(remaining: int) -> None:
+    sys.stdout.write(f"\rRetrying in {remaining}s...     ")
+    sys.stdout.flush()
+
 def run_cli(args=None) -> None:
     """Entry point for the CLI mode."""
     parser = argparse.ArgumentParser(description="WinMigrate CLI")
@@ -87,7 +91,13 @@ def run_cli(args=None) -> None:
         src, dst = parsed_args.transfer
         start = time.time()
         progress = lambda c, t: _print_progress(c, t, start)
-        success = copy_with_permissions(src, dst, cli=True, progress_cb=progress)
+        success = copy_with_permissions(
+            src,
+            dst,
+            cli=True,
+            progress_cb=progress,
+            retry_cb=_print_retry,
+        )
         print()  # newline after progress bar
         if success:
             print("Transfer completed. See winmigrate.log for details.")
