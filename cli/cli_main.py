@@ -1,5 +1,7 @@
 import argparse
 import os
+import sys
+import time
 
 from utils.logger import get_logger
 from utils.permissions import copy_with_permissions
@@ -42,6 +44,19 @@ def select_directory() -> str | None:
 
 logger = get_logger(__name__)
 
+
+def _print_progress(copied: int, total: int, start: float) -> None:
+    """Print a simple progress bar to stdout."""
+    percent = copied / total * 100 if total else 100
+    bar_len = 30
+    filled = int(bar_len * percent / 100)
+    bar = '#' * filled + '-' * (bar_len - filled)
+    speed = copied / max(time.time() - start, 1e-3)
+    eta = (total - copied) / speed if speed > 0 else 0
+    msg = f"\r[{bar}] {percent:5.1f}% {copied}/{total} bytes ETA {eta:0.1f}s"
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+
 def run_cli(args=None) -> None:
     """Entry point for the CLI mode."""
     parser = argparse.ArgumentParser(description="WinMigrate CLI")
@@ -57,7 +72,14 @@ def run_cli(args=None) -> None:
 
     if parsed_args.transfer:
         src, dst = parsed_args.transfer
-        copy_with_permissions(src, dst, cli=True)
+        start = time.time()
+        progress = lambda c, t: _print_progress(c, t, start)
+        success = copy_with_permissions(src, dst, cli=True, progress_cb=progress)
+        print()  # newline after progress bar
+        if success:
+            print("Transfer completed. See winmigrate.log for details.")
+        else:
+            print("Transfer failed or canceled. See winmigrate.log for details.")
     else:
         path = select_directory()
         if path:
