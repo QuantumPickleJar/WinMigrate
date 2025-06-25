@@ -1,7 +1,9 @@
+import os
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog, messagebox
 
 from utils.logger import get_logger
+from utils.transfer import copy_file_resumable
 
 logger = get_logger(__name__)
 
@@ -43,7 +45,17 @@ def launch_gui() -> None:
 
     def continue_action() -> None:
         logger.info("Selected transfer method: %s", selected.get())
-        ttk.Label(root, text="Next screen not yet implemented").pack(pady=10)
+        src = filedialog.askopenfilename(title="Select file to transfer")
+        if not src:
+            return
+        dest = filedialog.asksaveasfilename(title="Select destination path", initialfile=os.path.basename(src))
+        if not dest:
+            return
+        success = copy_file_resumable(src, dest)
+        if success:
+            messagebox.showinfo("Transfer", "Transfer completed successfully.")
+        else:
+            messagebox.showerror("Transfer", "Hash mismatch! Transfer failed.")
 
     ttk.Button(root, text="Continue", command=continue_action).pack(pady=10)
 
