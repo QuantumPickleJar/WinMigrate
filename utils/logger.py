@@ -9,7 +9,6 @@ def get_logger(name: str = "WinMigrate") -> logging.Logger:
 
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
-        
         fmt = '%(asctime)s - %(levelname)s - %(message)s'
         formatter = logging.Formatter(fmt)
 

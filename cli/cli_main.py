@@ -21,6 +21,27 @@ def _dir_size(path: str) -> int:
                 pass
     return total
 
+def select_directory() -> str | None:
+    """Prompt the user to select a directory via text input."""
+    while True:
+        path = input("Enter directory path (or 'q' to cancel): ").strip().strip('"')
+        if path.lower() == 'q' or not path:
+            print("No directory selected.")
+            return None
+        if not os.path.isdir(path):
+            print("Directory does not exist. Try again.")
+            continue
+        size = _dir_size(path)
+        print(f"Selected: {path}")
+        print(f"Estimated space required: {size} bytes")
+        confirm = input("Use this directory? (y/n): ").strip().lower()
+        if confirm == 'y':
+            return path
+        elif confirm == 'n':
+            continue
+        else:
+            print("Canceled.")
+            return None
 
 def select_directory() -> str | None:
     """Prompt the user to select a directory via text input."""
@@ -58,6 +79,23 @@ def _print_progress(copied: int, total: int, start: float) -> None:
     sys.stdout.write(msg)
     sys.stdout.flush()
 
+
+def _print_progress(copied: int, total: int, start: float) -> None:
+    """Print a simple progress bar to stdout."""
+    percent = copied / total * 100 if total else 100
+    bar_len = 30
+    filled = int(bar_len * percent / 100)
+    bar = '#' * filled + '-' * (bar_len - filled)
+    speed = copied / max(time.time() - start, 1e-3)
+    eta = (total - copied) / speed if speed > 0 else 0
+    msg = f"\r[{bar}] {percent:5.1f}% {copied}/{total} bytes ETA {eta:0.1f}s"
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+
+def _print_retry(remaining: int) -> None:
+    sys.stdout.write(f"\rRetrying in {remaining}s...     ")
+    sys.stdout.flush()
+
 def run_cli(args=None) -> None:
     """Entry point for the CLI mode."""
     parser = argparse.ArgumentParser(description="WinMigrate CLI")
@@ -86,7 +124,13 @@ def run_cli(args=None) -> None:
         src, dst = parsed_args.transfer
         start = time.time()
         progress = lambda c, t: _print_progress(c, t, start)
-        success = copy_with_permissions(src, dst, cli=True, progress_cb=progress)
+        success = copy_with_permissions(
+            src,
+            dst,
+            cli=True,
+            progress_cb=progress,
+            retry_cb=_print_retry,
+        )
         print()  # newline after progress bar
         if success:
             print("Transfer completed. See winmigrate.log for details.")
