@@ -1,14 +1,16 @@
+import os
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+
+from tkinter import ttk, filedialog, messagebox
+from utils.logger import get_logger
+from utils.transfer import copy_file_resumable
 import time
 import logging
-
 from utils import programs
-
-from utils.logger import get_logger
 from utils.permissions import copy_with_permissions
 
 logger = get_logger(__name__)
+
 
 def launch_gui() -> None:
     """Launch the GUI mode of the application."""
@@ -31,7 +33,7 @@ def launch_gui() -> None:
     status_var = tk.StringVar(value="")
     status_label = tk.Label(frame, textvariable=status_var)
     status_label.pack(pady=2)
-
+    
     log_text = tk.Text(frame, height=10, width=50, state="disabled")
     log_text.pack(pady=5)
 
@@ -92,9 +94,9 @@ def launch_gui() -> None:
 
     tk.Button(frame, text="Generate Program Report", width=20, command=generate_report_gui).pack(pady=5)
 
-    tk.Label(frame, text="(Functionality coming soon)").pack(pady=10)
 
     root.mainloop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     launch_gui()

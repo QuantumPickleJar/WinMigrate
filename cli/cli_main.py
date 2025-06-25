@@ -6,8 +6,8 @@ import time
 from utils import programs
 
 from utils.logger import get_logger
+from utils.transfer import copy_file_resumable
 from utils.permissions import copy_with_permissions
-
 
 def _dir_size(path: str) -> int:
     """Return directory size in bytes."""
@@ -20,7 +20,6 @@ def _dir_size(path: str) -> int:
             except OSError:
                 pass
     return total
-
 
 def select_directory() -> str | None:
     """Prompt the user to select a directory via text input."""
@@ -44,7 +43,41 @@ def select_directory() -> str | None:
             print("Canceled.")
             return None
 
-logger = get_logger(__name__)
+def select_directory() -> str | None:
+    """Prompt the user to select a directory via text input."""
+    while True:
+        path = input("Enter directory path (or 'q' to cancel): ").strip().strip('"')
+        if path.lower() == 'q' or not path:
+            print("No directory selected.")
+            return None
+        if not os.path.isdir(path):
+            print("Directory does not exist. Try again.")
+            continue
+        size = _dir_size(path)
+        print(f"Selected: {path}")
+        print(f"Estimated space required: {size} bytes")
+        confirm = input("Use this directory? (y/n): ").strip().lower()
+        if confirm == 'y':
+            return path
+        elif confirm == 'n':
+            continue
+        else:
+            print("Canceled.")
+            return None
+    logger = get_logger(__name__)
+
+
+def _print_progress(copied: int, total: int, start: float) -> None:
+    """Print a simple progress bar to stdout."""
+    percent = copied / total * 100 if total else 100
+    bar_len = 30
+    filled = int(bar_len * percent / 100)
+    bar = '#' * filled + '-' * (bar_len - filled)
+    speed = copied / max(time.time() - start, 1e-3)
+    eta = (total - copied) / speed if speed > 0 else 0
+    msg = f"\r[{bar}] {percent:5.1f}% {copied}/{total} bytes ETA {eta:0.1f}s"
+    sys.stdout.write(msg)
+    sys.stdout.flush()
 
 
 def _print_progress(copied: int, total: int, start: float) -> None:

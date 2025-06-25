@@ -29,6 +29,7 @@ def copy_file_with_progress(
         fsrc.seek(start)
         if start:
             fdst.seek(start)
+
         while True:
             chunk = fsrc.read(1024 * 1024)
             if not chunk:
@@ -71,6 +72,7 @@ def copy_file_with_timeout_retry(
             _countdown(delay, retry_cb)
             continue
     return True
+
 
 def take_ownership(path: str) -> bool:
     """Attempt to take ownership by changing permissions."""
@@ -116,10 +118,11 @@ def handle_permission_cli(
         ).strip().lower()
         if response == 'y':
             logger.info("User chose to retry as administrator for %s", src)
-            if _retry_copy(src, dst, callback, timeout, retry_cb):
+        if _retry_copy(src, dst, callback, timeout, retry_cb):
                 return True
         elif response == 't':
             if take_ownership(src) and _retry_copy(src, dst, callback, timeout, retry_cb):
+
                 return True
         else:
             logger.info("User canceled operation for %s", src)
@@ -149,7 +152,7 @@ def handle_permission_gui(
         f"Take ownership of {src}?",
         parent=root
     )
-    if take and take_ownership(src):
+    if take and take_ownership(src
         return _retry_copy(src, dst, callback, timeout, retry_cb)
     logger.info("User canceled operation for %s", src)
     return False
