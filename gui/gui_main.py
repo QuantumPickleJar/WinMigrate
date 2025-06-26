@@ -17,6 +17,26 @@ import logging
 logger = get_logger(__name__)
 
 
+def make_button(
+    parent: tk.Misc,
+    text: str,
+    command: Callable[[], None],
+    mnemonic: str | None = None,
+) -> tk.Button:
+    """Create a keyboard-friendly button."""
+    underline = None
+    if mnemonic:
+        idx = text.lower().find(mnemonic.lower())
+        if idx != -1:
+            underline = idx
+    btn = tk.Button(parent, text=text, command=command, underline=underline, takefocus=True)
+    btn.bind("<Return>", lambda e: btn.invoke())
+    btn.bind("<space>", lambda e: btn.invoke())
+    if mnemonic:
+        parent.bind(f"<Alt-{mnemonic.lower()}>", lambda e: btn.invoke())
+    return btn
+
+
 def _path_size(path: str) -> int:
     """Return size of a file or directory in bytes."""
     if os.path.isdir(path):
@@ -43,6 +63,7 @@ def select_items(parent: tk.Tk) -> list[str] | None:
 
     listbox = tk.Listbox(dialog, width=60, selectmode=tk.EXTENDED)
     listbox.pack(padx=10, pady=5, fill="both", expand=True)
+    listbox.focus_set()
 
     size_var = tk.StringVar(value="Total size: 0 bytes")
     tk.Label(dialog, textvariable=size_var).pack(pady=2)
@@ -108,11 +129,11 @@ def select_items(parent: tk.Tk) -> list[str] | None:
 
     btn_frame = tk.Frame(dialog)
     btn_frame.pack(pady=5)
-    tk.Button(btn_frame, text="Add Files", command=_add_files).pack(side="left", padx=2)
-    tk.Button(btn_frame, text="Add Folder", command=_add_folder).pack(side="left", padx=2)
-    tk.Button(btn_frame, text="Remove", command=_remove_selected).pack(side="left", padx=2)
-    tk.Button(btn_frame, text="Load Preset", command=_load_preset).pack(side="left", padx=2)
-    tk.Button(btn_frame, text="Save Preset", command=_save_preset).pack(side="left", padx=2)
+    make_button(btn_frame, "Add Files", _add_files, mnemonic="a").pack(side="left", padx=2)
+    make_button(btn_frame, "Add Folder", _add_folder, mnemonic="o").pack(side="left", padx=2)
+    make_button(btn_frame, "Remove", _remove_selected, mnemonic="r").pack(side="left", padx=2)
+    make_button(btn_frame, "Load Preset", _load_preset, mnemonic="l").pack(side="left", padx=2)
+    make_button(btn_frame, "Save Preset", _save_preset, mnemonic="s").pack(side="left", padx=2)
 
     result: list[str] | None = []
 
@@ -128,8 +149,8 @@ def select_items(parent: tk.Tk) -> list[str] | None:
 
     action_frame = tk.Frame(dialog)
     action_frame.pack(pady=5)
-    tk.Button(action_frame, text="OK", width=10, command=_ok).pack(side="left", padx=5)
-    tk.Button(action_frame, text="Cancel", width=10, command=_cancel).pack(side="left", padx=5)
+    make_button(action_frame, "OK", _ok, mnemonic="o").pack(side="left", padx=5)
+    make_button(action_frame, "Cancel", _cancel, mnemonic="c").pack(side="left", padx=5)
 
     dialog.transient(parent)
     dialog.grab_set()
@@ -151,23 +172,25 @@ def launch_gui() -> None:
 
     tk.Label(frame, text="Select Transfer Method").pack(pady=10)
 
-    methods = ["USB Drive", "Network", "External HDD"]
-    for method in methods:
-        tk.Button(frame, text=method, width=20).pack(pady=5)
+    methods = [
+        ("USB Drive", "u"),
+        ("Network", "n"),
+        ("External HDD", "e"),
+    ]
+    first_button: tk.Button | None = None
+    for text, m in methods:
+        btn = make_button(frame, text, lambda t=text: logger.info("Selected %s", t), mnemonic=m)
+        btn.config(width=20)
+        btn.pack(pady=5)
+        if first_button is None:
+            first_button = btn
+    if first_button is not None:
+        first_button.focus_set()
 
     progress = ttk.Progressbar(frame, length=300)
     progress.pack(pady=5, fill="x")
 
     control = TransferControl()
-
-    btn_frame = tk.Frame(frame)
-    btn_frame.pack(pady=5)
-    pause_btn = tk.Button(btn_frame, text="Pause", state="disabled")
-    resume_btn = tk.Button(btn_frame, text="Resume", state="disabled")
-    cancel_btn = tk.Button(btn_frame, text="Cancel", state="disabled")
-    pause_btn.pack(side="left", padx=5)
-    resume_btn.pack(side="left", padx=5)
-    cancel_btn.pack(side="left", padx=5)
 
     def pause_transfer() -> None:
         control.pause.set()
@@ -188,9 +211,17 @@ def launch_gui() -> None:
         cancel_btn.config(state="disabled")
         status_var.set("Canceling...")
 
-    pause_btn.config(command=pause_transfer)
-    resume_btn.config(command=resume_transfer)
-    cancel_btn.config(command=cancel_transfer)
+    btn_frame = tk.Frame(frame)
+    btn_frame.pack(pady=5)
+    pause_btn = make_button(btn_frame, "Pause", pause_transfer, mnemonic="p")
+    resume_btn = make_button(btn_frame, "Resume", resume_transfer, mnemonic="r")
+    cancel_btn = make_button(btn_frame, "Cancel", cancel_transfer, mnemonic="c")
+    pause_btn.config(state="disabled")
+    resume_btn.config(state="disabled")
+    cancel_btn.config(state="disabled")
+    pause_btn.pack(side="left", padx=5)
+    resume_btn.pack(side="left", padx=5)
+    cancel_btn.pack(side="left", padx=5)
 
     status_var = tk.StringVar(value="")
     status_label = tk.Label(frame, textvariable=status_var)
@@ -367,11 +398,17 @@ def launch_gui() -> None:
 
         threading.Thread(target=run, daemon=True).start()
 
-    tk.Button(frame, text="Transfer File", width=20, command=choose_and_transfer).pack(pady=5)
+    transfer_btn = make_button(frame, "Transfer File", choose_and_transfer, mnemonic="t")
+    transfer_btn.config(width=20)
+    transfer_btn.pack(pady=5)
 
-    tk.Button(frame, text="Generate Program Report", width=20, command=generate_report_gui).pack(pady=5)
+    report_btn = make_button(frame, "Generate Program Report", generate_report_gui, mnemonic="g")
+    report_btn.config(width=20)
+    report_btn.pack(pady=5)
 
-    tk.Button(frame, text="Restore Wizard", width=20, command=restore_wizard).pack(pady=5)
+    restore_btn = make_button(frame, "Restore Wizard", restore_wizard, mnemonic="w")
+    restore_btn.config(width=20)
+    restore_btn.pack(pady=5)
 
 
     root.mainloop()
