@@ -162,7 +162,12 @@ def launch_gui() -> None:
     """Launch the GUI mode of the application."""
     config = load_config(None)
     level = getattr(logging, config.verbosity.upper(), logging.INFO)
-    configure_logger(level=level, log_path=config.log_path)
+    configure_logger(
+        level=level,
+        log_path=config.log_path,
+        csv_log_path=config.csv_log_path,
+        accessible=config.accessible,
+    )
     logger.info("Launching GUI")
     root = tk.Tk()
     root.title("WinMigrate - Transfer Method Selection")

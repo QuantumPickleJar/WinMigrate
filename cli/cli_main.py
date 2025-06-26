@@ -101,21 +101,28 @@ def load_preset_file(path: str) -> list[str]:
     return [str(p) for p in data]
 
 
-def _print_progress(copied: int, total: int, start: float) -> None:
-    """Print a simple progress bar to stdout."""
+def _print_progress(copied: int, total: int, start: float, *, accessible: bool = False) -> None:
+    """Print a progress indicator to stdout."""
     percent = copied / total * 100 if total else 100
     bar_len = 30
     filled = int(bar_len * percent / 100)
     bar = '#' * filled + '-' * (bar_len - filled)
     speed = copied / max(time.time() - start, 1e-3)
     eta = (total - copied) / speed if speed > 0 else 0
-    msg = f"\r[{bar}] {percent:5.1f}% {copied}/{total} bytes ETA {eta:0.1f}s"
-    sys.stdout.write(msg)
-    sys.stdout.flush()
+    msg = f"[{bar}] {percent:5.1f}% {copied}/{total} bytes ETA {eta:0.1f}s"
+    if accessible:
+        print(msg)
+    else:
+        sys.stdout.write("\r" + msg)
+        sys.stdout.flush()
 
-def _print_retry(remaining: int) -> None:
-    sys.stdout.write(f"\rRetrying in {remaining}s...     ")
-    sys.stdout.flush()
+def _print_retry(remaining: int, *, accessible: bool = False) -> None:
+    msg = f"Retrying in {remaining}s..."
+    if accessible:
+        print(msg)
+    else:
+        sys.stdout.write(f"\r{msg}     ")
+        sys.stdout.flush()
 
 
 def copy_items(
@@ -130,7 +137,7 @@ def copy_items(
     start = time.time()
 
     def make_update(offset: int):
-        return lambda c, t: _print_progress(offset + c, total_size, start)
+        return lambda c, t: _print_progress(offset + c, total_size, start, accessible=config.accessible)
 
     for src in sources:
         if control.cancel.is_set():
@@ -152,7 +159,7 @@ def copy_items(
                         dst,
                         cli=True,
                         progress_cb=cb,
-                        retry_cb=_print_retry,
+                        retry_cb=lambda r: _print_retry(r, accessible=config.accessible),
                         timeout=config.timeout,
                         chunk_size=config.chunk_size,
                         control=control,
@@ -169,7 +176,7 @@ def copy_items(
                 dst,
                 cli=True,
                 progress_cb=cb,
-                retry_cb=_print_retry,
+                retry_cb=lambda r: _print_retry(r, accessible=config.accessible),
                 timeout=config.timeout,
                 chunk_size=config.chunk_size,
                 control=control,
@@ -187,6 +194,8 @@ def run_cli(args=None) -> None:
     parser.add_argument('--verbosity', help='Logging verbosity level')
     parser.add_argument('--chunk-size', type=int, help='Transfer block size in bytes')
     parser.add_argument('--log-path', help='Path to log file')
+    parser.add_argument('--csv-log-path', help='Path to CSV log file')
+    parser.add_argument('--accessible', action='store_true', help='Accessible output for screen readers')
     parser.add_argument('--preset', help='Path to file selection preset')
     parser.add_argument(
         '--save-preset', nargs='?', const=True, metavar='NAME',
@@ -207,7 +216,12 @@ def run_cli(args=None) -> None:
     config = load_config(parsed_args.config)
     config = apply_cli_overrides(config, parsed_args)
     level = getattr(logging, config.verbosity.upper(), logging.INFO)
-    configure_logger(level=level, log_path=config.log_path)
+    configure_logger(
+        level=level,
+        log_path=config.log_path,
+        csv_log_path=config.csv_log_path,
+        accessible=config.accessible,
+    )
 
     control = TransferControl()
 
@@ -253,13 +267,13 @@ def run_cli(args=None) -> None:
                 parser.error('--transfer requires SRC and DST')
             src, dst = parsed_args.transfer
             start = time.time()
-            progress = lambda c, t: _print_progress(c, t, start)
+            progress = lambda c, t: _print_progress(c, t, start, accessible=config.accessible)
             success = copy_with_permissions(
                 src,
                 dst,
                 cli=True,
                 progress_cb=progress,
-                retry_cb=_print_retry,
+                retry_cb=lambda r: _print_retry(r, accessible=config.accessible),
                 timeout=config.timeout,
                 chunk_size=config.chunk_size,
                 control=control,

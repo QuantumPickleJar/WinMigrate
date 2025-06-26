@@ -23,6 +23,8 @@ class Config:
     verbosity: str = "INFO"
     chunk_size: int = 1024 * 1024
     log_path: str = os.path.join(os.getcwd(), "winmigrate.log")
+    csv_log_path: str = os.path.join(os.getcwd(), "winmigrate.csv")
+    accessible: bool = False
 
 
 def _read_config(path: str) -> Dict[str, Any]:
@@ -69,6 +71,12 @@ def load_config(path: Optional[str] = None) -> Config:
             cfg.log_path = str(data["log_path"])
         if "log-path" in data:
             cfg.log_path = str(data["log-path"])
+        if "csv_log_path" in data:
+            cfg.csv_log_path = str(data["csv_log_path"])
+        if "csv-log-path" in data:
+            cfg.csv_log_path = str(data["csv-log-path"])
+        if "accessible" in data:
+            cfg.accessible = bool(data["accessible"])
     return cfg
 
 
@@ -81,4 +89,8 @@ def apply_cli_overrides(cfg: Config, args: argparse.Namespace) -> Config:
         cfg.chunk_size = args.chunk_size
     if getattr(args, "log_path", None) is not None:
         cfg.log_path = args.log_path
+    if getattr(args, "csv_log_path", None) is not None:
+        cfg.csv_log_path = args.csv_log_path
+    if getattr(args, "accessible", None) is not None:
+        cfg.accessible = args.accessible
     return cfg
