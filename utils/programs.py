@@ -1,5 +1,6 @@
 import os
 import platform
+import json
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -82,8 +83,12 @@ def scan_installed_programs() -> List[ProgramInfo]:
     return progs
 
 
-def generate_report(output_dir: str) -> str:
-    """Generate a markdown report of installed programs."""
+def generate_report(output_dir: str, *, json_file: bool = True) -> str:
+    """Generate a markdown report of installed programs.
+
+    If ``json_file`` is True, also write a ``installed_programs.json`` file
+    containing the program data for use in restore scripts.
+    """
     os.makedirs(output_dir, exist_ok=True)
     programs = scan_installed_programs()
     lines = ["# Installed Programs", ""]
@@ -97,5 +102,10 @@ def generate_report(output_dir: str) -> str:
     path = os.path.join(output_dir, "installed_programs.md")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+    if json_file:
+        json_path = os.path.join(output_dir, "installed_programs.json")
+        with open(json_path, "w", encoding="utf-8") as jf:
+            json.dump([p.__dict__ for p in programs], jf, indent=2)
+        logger.info("Generated installed programs JSON at %s", json_path)
     logger.info("Generated installed programs report at %s", path)
     return path

@@ -2,7 +2,12 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 from typing import Callable, Optional
+from .transfer_control import TransferControl
 import time
+
+class TransferCanceled(Exception):
+    """Raised when a transfer is canceled."""
+    pass
 
 from .logger import get_logger
 
@@ -17,6 +22,8 @@ def copy_file_with_progress(
     dst: str,
     callback: ProgressCallback = None,
     start: int = 0,
+    chunk_size: int = 1024 * 1024,
+    control: Optional[TransferControl] = None,
 ) -> int:
     """Copy a file while invoking a progress callback.
 
@@ -31,7 +38,18 @@ def copy_file_with_progress(
             fdst.seek(start)
 
         while True:
-            chunk = fsrc.read(1024 * 1024)
+            if control and control.cancel.is_set():
+                fdst.flush()
+                os.fsync(fdst.fileno())
+                raise TransferCanceled()
+            if control and control.pause.is_set():
+                fdst.flush()
+                os.fsync(fdst.fileno())
+                while control.pause.is_set():
+                    if control.cancel.is_set():
+                        raise TransferCanceled()
+                    time.sleep(0.1)
+            chunk = fsrc.read(chunk_size)
             if not chunk:
                 break
             fdst.write(chunk)
@@ -52,6 +70,8 @@ def copy_file_with_timeout_retry(
     callback: ProgressCallback = None,
     timeout: int = 300,
     retry_cb: Optional[Callable[[int], None]] = None,
+    chunk_size: int = 1024 * 1024,
+    control: Optional[TransferControl] = None,
 ) -> bool:
     """Copy handling transient network errors with timeout and retry."""
     total = os.path.getsize(src)
@@ -60,7 +80,16 @@ def copy_file_with_timeout_retry(
     attempt = 0
     while copied < total:
         try:
-            copied = copy_file_with_progress(src, dst, callback, start=copied)
+            copied = copy_file_with_progress(
+                src,
+                dst,
+                callback,
+                start=copied,
+                chunk_size=chunk_size,
+                control=control,
+            )
+        except TransferCanceled:
+            return False
         except OSError as exc:
             logger.warning('Network error: %s', exc)
             if time.time() - start_time >= timeout:
@@ -91,12 +120,24 @@ def _retry_copy(
     callback: ProgressCallback = None,
     timeout: int = 300,
     retry_cb: Optional[Callable[[int], None]] = None,
+    chunk_size: int = 1024 * 1024,
+    control: Optional[TransferControl] = None,
 ) -> bool:
     """Attempt to copy again, returning success."""
     try:
-        copy_file_with_timeout_retry(src, dst, callback, timeout, retry_cb)
+        copy_file_with_timeout_retry(
+            src,
+            dst,
+            callback,
+            timeout,
+            retry_cb,
+            chunk_size,
+            control,
+        )
         logger.info("Copied %s to %s", src, dst)
         return True
+    except TransferCanceled:
+        return False
     except PermissionError as exc:
         logger.error("Permission error after retry: %s", exc)
     except Exception as exc:
@@ -110,6 +151,8 @@ def handle_permission_cli(
     callback: ProgressCallback = None,
     timeout: int = 300,
     retry_cb: Optional[Callable[[int], None]] = None,
+    chunk_size: int = 1024 * 1024,
+    control: Optional[TransferControl] = None,
 ) -> bool:
     """Handle permission errors in CLI mode with prompts."""
     while True:
@@ -118,10 +161,10 @@ def handle_permission_cli(
         ).strip().lower()
         if response == 'y':
             logger.info("User chose to retry as administrator for %s", src)
-        if _retry_copy(src, dst, callback, timeout, retry_cb):
+        if _retry_copy(src, dst, callback, timeout, retry_cb, chunk_size, control):
                 return True
         elif response == 't':
-            if take_ownership(src) and _retry_copy(src, dst, callback, timeout, retry_cb):
+            if take_ownership(src) and _retry_copy(src, dst, callback, timeout, retry_cb, chunk_size, control):
 
                 return True
         else:
@@ -136,6 +179,8 @@ def handle_permission_gui(
     callback: ProgressCallback = None,
     timeout: int = 300,
     retry_cb: Optional[Callable[[int], None]] = None,
+    chunk_size: int = 1024 * 1024,
+    control: Optional[TransferControl] = None,
 ) -> bool:
     """Handle permission errors in GUI mode using dialogs."""
     retry = messagebox.askyesno(
@@ -145,15 +190,15 @@ def handle_permission_gui(
     )
     if retry:
         logger.info("User chose to retry as administrator for %s", src)
-        if _retry_copy(src, dst, callback, timeout, retry_cb):
+        if _retry_copy(src, dst, callback, timeout, retry_cb, chunk_size, control):
             return True
     take = messagebox.askyesno(
         "Take Ownership",
         f"Take ownership of {src}?",
-        parent=root
+        parent=root,
     )
-    if take and take_ownership(src
-        return _retry_copy(src, dst, callback, timeout, retry_cb)
+    if take and take_ownership(src):
+        return _retry_copy(src, dst, callback, timeout, retry_cb, chunk_size, control)
     logger.info("User canceled operation for %s", src)
     return False
 
@@ -166,20 +211,47 @@ def copy_with_permissions(
     progress_cb: ProgressCallback = None,
     timeout: int = 300,
     retry_cb: Optional[Callable[[int], None]] = None,
+    chunk_size: int = 1024 * 1024,
+    control: Optional[TransferControl] = None,
 ) -> bool:
     """Copy a file handling permission errors for CLI or GUI."""
     try:
-        copy_file_with_timeout_retry(src, dst, progress_cb, timeout, retry_cb)
+        copy_file_with_timeout_retry(
+            src,
+            dst,
+            progress_cb,
+            timeout,
+            retry_cb,
+            chunk_size,
+            control,
+        )
         logger.info("Copied %s to %s", src, dst)
         return True
     except PermissionError:
         logger.warning("Permission denied when copying %s", src)
         if cli:
-            return handle_permission_cli(src, dst, progress_cb, timeout, retry_cb)
+            return handle_permission_cli(
+                src,
+                dst,
+                progress_cb,
+                timeout,
+                retry_cb,
+                chunk_size,
+                control,
+            )
         if root is None:
             root = tk.Tk()
             root.withdraw()
-        return handle_permission_gui(root, src, dst, progress_cb, timeout, retry_cb)
+        return handle_permission_gui(
+            root,
+            src,
+            dst,
+            progress_cb,
+            timeout,
+            retry_cb,
+            chunk_size,
+            control,
+        )
     except Exception as exc:
         logger.error("Failed to copy %s to %s: %s", src, dst, exc)
         return False

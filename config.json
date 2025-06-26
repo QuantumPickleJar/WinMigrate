@@ -1,0 +1,6 @@
+{
+  "timeout": 300,
+  "verbosity": "INFO",
+  "chunk_size": 1048576,
+  "log_path": "winmigrate.log"
+}
