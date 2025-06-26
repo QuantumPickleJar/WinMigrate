@@ -294,7 +294,6 @@ def launch_gui() -> None:
             f"Script saved to {script_path}. Review before running.",
             parent=root,
         )
-
     def choose_and_transfer() -> None:
         sources = select_items(root)
         if not sources:
@@ -314,6 +313,7 @@ def launch_gui() -> None:
         total_size = sum(_path_size(p) for p in sources)
         copied_total = 0
 
+
         def make_update(start_offset: int) -> Callable[[int, int], None]:
             def _update(copied: int, total: int) -> None:
                 percent = (start_offset + copied) / total_size * 100 if total_size else 100
@@ -324,6 +324,10 @@ def launch_gui() -> None:
         def retry_cb(seconds: int) -> None:
             status_var.set(f"Retrying in {seconds}s...")
             root.update_idletasks()
+
+#     tk.Button(frame, text="Transfer File", width=20, command=choose_and_transfer).pack(pady=5)
+#     tk.Button(frame, text="Generate Program Report", width=20, command=generate_report_gui).pack(pady=5)
+#     tk.Label(frame, text="(Functionality coming soon)").pack(pady=10)
 
         def run() -> None:
             nonlocal copied_total
@@ -414,7 +418,6 @@ def launch_gui() -> None:
     restore_btn = make_button(frame, "Restore Wizard", restore_wizard, mnemonic="w")
     restore_btn.config(width=20)
     restore_btn.pack(pady=5)
-
 
     root.mainloop()
 

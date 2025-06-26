@@ -5,7 +5,6 @@ import os
 import signal
 import sys
 import time
-
 from utils import programs
 
 from utils.logger import get_logger, configure_logger
@@ -205,12 +204,17 @@ def run_cli(args=None) -> None:
         '--transfer', nargs='+', metavar=('SRC', 'DST'),
         help='Transfer file(s). Provide only DST when used with --preset'
     )
+    
     parser.add_argument(
         '--installed-report', nargs='?', metavar='DIR', const='',
         help='Generate installed programs report in DIR (prompt if omitted)'
     )
+<<<<<<< codex/implement-uac-elevation-and-ownership-prompt
+    
+=======
     parser.add_argument('--restore-script', help='Write PowerShell restore script to PATH')
     parser.add_argument('--program-json', help='Installed programs JSON for restore script')
+>>>>>>> codex/create-initial-structure-for-windows-migration-assistant
     parsed_args = parser.parse_args(args)
 
     config = load_config(parsed_args.config)
