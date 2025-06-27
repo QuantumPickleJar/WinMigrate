@@ -209,12 +209,8 @@ def run_cli(args=None) -> None:
         '--installed-report', nargs='?', metavar='DIR', const='',
         help='Generate installed programs report in DIR (prompt if omitted)'
     )
-<<<<<<< codex/implement-uac-elevation-and-ownership-prompt
-    
-=======
     parser.add_argument('--restore-script', help='Write PowerShell restore script to PATH')
     parser.add_argument('--program-json', help='Installed programs JSON for restore script')
->>>>>>> codex/create-initial-structure-for-windows-migration-assistant
     parsed_args = parser.parse_args(args)
 
     config = load_config(parsed_args.config)
@@ -260,7 +256,7 @@ def run_cli(args=None) -> None:
             if len(parsed_args.transfer) != 1:
                 parser.error('--transfer requires DEST only when using --preset')
             dst_root = parsed_args.transfer[0]
-            sources = load_preset_file(parsed_args.preset)
+            sources: list[str] | None = load_preset_file(parsed_args.preset)
             success = copy_items(sources, dst_root, config, control)
             pairs = [
                 (s, os.path.join(dst_root, os.path.basename(s.rstrip(os.sep))))
