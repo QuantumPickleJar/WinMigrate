@@ -1,0 +1,3 @@
+[flake8]
+exclude = cli/cli_main.py, gui/*
+ignore = E501,W293,E302,E305,E306,E303,E117,E402,W391

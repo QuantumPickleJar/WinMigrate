@@ -1,0 +1,32 @@
+name: Integration Transfer Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  transfer-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install pytest flake8 mypy
+      - name: Lint
+        run: flake8
+      - name: Type check
+        run: mypy --ignore-missing-imports --follow-imports=silent utils/transfer.py utils/config.py
+      - name: Run tests
+        run: pytest -vv > pytest.log
+      - name: Integration transfer
+        run: python scripts/dummy_transfer.py
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            pytest.log
+            winmigrate.log
