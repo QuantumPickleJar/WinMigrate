@@ -1,0 +1,42 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest flake8 mypy
+      - name: Lint
+        run: |
+          flake8 .
+          mypy .
+      - name: Run unit tests
+        run: pytest --maxfail=1 --disable-warnings -q
+      - name: Integration test (dummy transfer)
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import os
+          import hashlib
+          import tempfile
+          from cli.cli_main import transfer
+
+          src = tempfile.mkdtemp()
+          dst = tempfile.mkdtemp()
+          with open(os.path.join(src, 'test.txt'), 'wb') as f:
+              f.write(b'hello')
+          transfer(src, dst)
+          assert hashlib.sha256(
+              open(os.path.join(dst, 'test.txt'), 'rb').read()
+          ).hexdigest() == hashlib.sha256(b'hello').hexdigest()
+          EOF
