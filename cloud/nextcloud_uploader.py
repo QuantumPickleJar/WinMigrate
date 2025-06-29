@@ -17,7 +17,13 @@ from utils.logger import get_logger
 class NextcloudUploader:
     """Upload files to Nextcloud using WebDAV with chunked uploads."""
 
-    def __init__(self, base_url: str, username: str, password: str, logger: logging.Logger | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        username: str,
+        password: str,
+        logger: logging.Logger | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.username = username
         self.password = password
@@ -46,7 +52,8 @@ class NextcloudUploader:
                 req.add_header(k, v)
             try:
                 with request.urlopen(req) as resp:
-                    self.logger.debug("%s %s -> %s", method, url, getattr(resp, "status", "?"))
+                    status = getattr(resp, "status", "?")
+                    self.logger.debug("%s %s -> %s", method, url, status)
                     return resp.read()
             except Exception as exc:  # pylint: disable=broad-except
                 self.logger.error("%s %s failed: %s", method, url, exc)
@@ -72,12 +79,18 @@ class NextcloudUploader:
             href = resp.find("{DAV:}href")
             if href is None:
                 continue
-            name = os.path.basename(href.text.rstrip("/"))
+            name = os.path.basename((href.text or "").rstrip("/"))
             if name.isdigit():
                 chunks.append(int(name))
         return sorted(chunks)
 
-    def upload_file(self, local_path: str, remote_path: str, chunk_size: int = 10 * 1024 * 1024, verify: bool = False) -> None:
+    def upload_file(
+        self,
+        local_path: str,
+        remote_path: str,
+        chunk_size: int = 10 * 1024 * 1024,
+        verify: bool = False,
+    ) -> None:
         """Upload ``local_path`` to ``remote_path`` in chunks."""
         upload_id = uuid.uuid4().hex
         existing = self._list_existing_chunks(upload_id)
@@ -102,7 +115,10 @@ class NextcloudUploader:
                 self.logger.debug("Uploaded chunk %s (%s bytes)", chunk_num, len(data))
                 chunk_num += 1
 
-        dest = f"{self.base_url}/remote.php/dav/files/{self.username}/{remote_path.lstrip('/')}"
+        dest = (
+            f"{self.base_url}/remote.php/dav/files/"
+            f"{self.username}/{remote_path.lstrip('/')}"
+        )
         self._make_request(
             "MOVE",
             f"{chunk_dir}/.file",
@@ -112,7 +128,11 @@ class NextcloudUploader:
 
         if verify:
             local_hash = self._hash_file(local_path)
-            remote_data = self._make_request("GET", f"/remote.php/dav/files/{self.username}/{remote_path.lstrip('/')}")
+            remote_path_clean = remote_path.lstrip("/")
+            remote_data = self._make_request(
+                "GET",
+                f"/remote.php/dav/files/{self.username}/{remote_path_clean}",
+            )
             remote_hash = hashlib.sha256(remote_data).hexdigest()
             if local_hash != remote_hash:
                 raise ValueError("Hash mismatch after upload")
