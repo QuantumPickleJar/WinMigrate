@@ -1,0 +1,7 @@
+- feat(init): initial commit
+- feat(structure): add project skeleton with CLI and GUI
+- test: add tests and lint configuration
+- fix(tests): use transfer helper for integration test
+- fix(ci): correct integration test syntax
+- chore(ci): add GitHub Actions workflow
+- feat(nextcloud): implement Nextcloud linking via CLI
