@@ -23,10 +23,20 @@ jobs:
       - name: Run unit tests
         run: pytest --maxfail=1 --disable-warnings -q
       - name: Integration test (dummy transfer)
+        shell: bash
         run: |
-          python -c "import os, tempfile, hashlib; \
-            src=tempfile.mkdtemp();\
-            dst=tempfile.mkdtemp();\
-            with open(os.path.join(src,'test.txt'),'wb') as f: f.write(b'hello');\
-            from cli.cli_main import transfer; transfer(src, dst);\
-            assert hashlib.sha256(open(os.path.join(dst,'test.txt'),'rb').read()).hexdigest() == hashlib.sha256(b'hello').hexdigest()"
+          python - <<'EOF'
+          import os
+          import hashlib
+          import tempfile
+          from cli.cli_main import transfer
+
+          src = tempfile.mkdtemp()
+          dst = tempfile.mkdtemp()
+          with open(os.path.join(src, 'test.txt'), 'wb') as f:
+              f.write(b'hello')
+          transfer(src, dst)
+          assert hashlib.sha256(
+              open(os.path.join(dst, 'test.txt'), 'rb').read()
+          ).hexdigest() == hashlib.sha256(b'hello').hexdigest()
+          EOF
