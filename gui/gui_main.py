@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+from functools import partial
+
 from cli.cli_main import transfer
 from utils.logger import get_logger
 
@@ -17,7 +19,10 @@ def launch_gui() -> None:
         src_dir = filedialog.askdirectory(parent=root, title="Select source directory")
         if not src_dir:
             return
-        dst_dir = filedialog.askdirectory(parent=root, title="Select destination directory")
+        dst_dir = filedialog.askdirectory(
+            parent=root,
+            title="Select destination directory",
+        )
         if not dst_dir:
             return
         transfer(src_dir, dst_dir)
@@ -35,7 +40,7 @@ def launch_gui() -> None:
             root,
             text=method,
             width=20,
-            command=lambda m=method: select_method(m),
+            command=partial(select_method, method),
         ).pack(pady=5)
 
     tk.Label(root, text="(Functionality coming soon)").pack(pady=10)
